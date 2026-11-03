@@ -1,0 +1,15 @@
+# STAGING CANDIDATE ONLY — confirm identities, filesystem paths and socket group on target.
+[Unit]
+Description=Nym MCP controller RPC socket (Phase 1 staging candidate)
+
+[Socket]
+ListenStream=/run/nym-controller.sock
+SocketUser=nym-controller
+SocketGroup=nym-mcp
+SocketMode=0660
+DirectoryMode=0755
+Accept=no
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

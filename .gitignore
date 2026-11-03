@@ -1,0 +1,43 @@
+# Secrets and local env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_*
+!id_*.pub
+*_secret
+*_secret.*
+approval_secret
+**/credentials*
+**/*credential*
+**/google_client_secret.json
+**/auth.json
+**/*oauth*
+**/*.token
+
+# Private infra
+# Prefer inventory.ini.example; a generic inventory.ini is shipped for offline tests.
+# Replace inventory.ini locally for real hosts and keep secrets out of git.
+inventory.local.ini
+known_hosts
+*.ssh/
+ssh-ops/
+
+# Backups / caches / evidence dumps
+*.bak
+*.bak-*
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.tar.gz
+docs/evidence-private/
+*.jsonl
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+tests/.m*-offline-test-evidence.json

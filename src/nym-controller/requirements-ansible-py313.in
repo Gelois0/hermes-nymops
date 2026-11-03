@@ -1,0 +1,3 @@
+# Generated for CPython 3.13 compatibility; tested with 3.13.5.
+--index-url https://pypi.org/simple
+ansible-core==2.19.14

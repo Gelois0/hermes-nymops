@@ -1,0 +1,37 @@
+#!/bin/sh
+# Hermes invokes this via its fixed sudoers entry as a stdio MCP command.
+# systemd-run starts only the Python MCP process as nym-mcp and pipes stdio.
+set -eu
+[ "$#" -eq 0 ] || { printf 'No arguments accepted.\\n' >&2; exit 2; }
+exec /usr/bin/env -i \
+  PATH=/usr/bin:/bin \
+  LANG=C.UTF-8 \
+  /usr/bin/systemd-run \
+    --system --quiet --pipe --wait --collect \
+    --service-type=exec \
+    --uid=nym-mcp --gid=nym-mcp \
+    --setenv=HOME=/var/lib/nym-mcp \
+    --setenv=PATH=/usr/bin:/bin \
+    --setenv=LANG=C.UTF-8 \
+    --setenv=PYTHONNOUSERSITE=1 \
+    --property=NoNewPrivileges=yes \
+    --property=CapabilityBoundingSet= \
+    --property=AmbientCapabilities= \
+    --property=PrivateNetwork=yes \
+    --property=RestrictAddressFamilies=AF_UNIX \
+    --property=PrivateTmp=yes \
+    --property=ProtectSystem=strict \
+    --property=ProtectHome=yes \
+    --property=ProtectKernelTunables=yes \
+    --property=ProtectKernelModules=yes \
+    --property=ProtectControlGroups=yes \
+    --property=RestrictSUIDSGID=yes \
+    --property=LockPersonality=yes \
+    --property=UMask=0077 \
+    --property=StateDirectory=nym-mcp \
+    --property=StateDirectoryMode=0700 \
+    --property=WorkingDirectory=/var/lib/nym-mcp \
+    '--property=UnsetEnvironment=SSH_AUTH_SOCK DOCKER_HOST CREDENTIALS_DIRECTORY' \
+    '--property=InaccessiblePaths=/run/docker.sock /var/run/docker.sock -/run/ssh-agent.sock /run/user/1001/openssh_agent' \
+    '--property=ReadOnlyPaths=/usr/local/libexec/nym-mcp /opt/nym-mcp' \
+    -- /opt/nym-mcp/venv/bin/python -I -c "import runpy,sys; sys.path.insert(0,'/usr/local/libexec/nym-mcp'); runpy.run_path('/usr/local/libexec/nym-mcp/mcp_server.py',run_name='__main__')"

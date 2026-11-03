@@ -1,0 +1,13 @@
+# Copy to inventory.ini (never commit real inventory.ini).
+# Hostnames must match NYM_ALLOWED_HOSTS and your SSH config Host aliases.
+[nym]
+node-a ansible_host=node-a
+node-b ansible_host=node-b
+node-c ansible_host=node-c
+node-d ansible_host=node-d
+node-e ansible_host=node-e
+node-f ansible_host=node-f
+
+[nym:vars]
+ansible_user=root
+ansible_port=22

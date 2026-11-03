@@ -1,0 +1,7 @@
+---
+- name: Ping Nym nodes
+  hosts: nym
+  gather_facts: false
+  tasks:
+    - name: Verify Ansible connectivity
+      ansible.builtin.ping:

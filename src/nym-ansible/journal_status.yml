@@ -1,0 +1,72 @@
+---
+# M3 — read-only journal/status; counts only; no log message bodies; no service changes.
+- name: Read-only nym-node journal status
+  hosts: nym
+  gather_facts: false
+  tasks:
+    - name: Collect capped journal counts and service state
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            import datetime, json, subprocess
+            def run(argv):
+                try:
+                    p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=20)
+                    return p.stdout if p.returncode == 0 else None
+                except (OSError, subprocess.TimeoutExpired):
+                    return None
+            props = run(['/usr/bin/systemctl', 'show', 'nym-node.service',
+                         '--property=ActiveState,SubState,NRestarts,MainPID,FragmentPath'])
+            service = dict(line.split('=', 1) for line in (props or '').splitlines() if '=' in line)
+            active = service.get('ActiveState', 'unknown')
+            if active not in ('active', 'inactive', 'failed', 'activating', 'deactivating'):
+                active = 'unknown'
+            restarts = service.get('NRestarts', '')
+            restarts = int(restarts) if restarts.isdigit() else None
+            main_pid = service.get('MainPID', '')
+            main_pid = int(main_pid) if main_pid.isdigit() else None
+            # Counts only: PRIORITY field, 201-line cap, 24h window. Never emit log text.
+            journal = run(['/usr/bin/journalctl', '--unit=nym-node.service', '--since=-24h',
+                           '--priority=err', '--lines=201', '--output=json',
+                           '--output-fields=PRIORITY', '--no-pager', '--quiet'])
+            err_count = None
+            capped = False
+            if journal is not None:
+                try:
+                    entries = [json.loads(line) for line in journal.splitlines() if line.strip()]
+                    err_count = len(entries)
+                    capped = err_count >= 201
+                except (ValueError, TypeError):
+                    pass
+            warn = run(['/usr/bin/journalctl', '--unit=nym-node.service', '--since=-24h',
+                        '--priority=warning', '--lines=201', '--output=json',
+                        '--output-fields=PRIORITY', '--no-pager', '--quiet'])
+            warn_count = None
+            warn_capped = False
+            if warn is not None:
+                try:
+                    entries = [json.loads(line) for line in warn.splitlines() if line.strip()]
+                    warn_count = len(entries)
+                    warn_capped = warn_count >= 201
+                except (ValueError, TypeError):
+                    pass
+            checked_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            print(json.dumps(dict(
+                checked_at=checked_at,
+                service_state=active,
+                restart_count=restarts,
+                main_pid=main_pid,
+                err_priority_count_24h=err_count,
+                err_sample_capped=capped,
+                warning_priority_count_24h=warn_count,
+                warning_sample_capped=warn_capped,
+                messages_emitted=False,
+            )))
+      changed_when: false
+      register: journal_status
+      no_log: true
+    - name: Report per-host safe journal status counters
+      ansible.builtin.debug:
+        var: journal_status.stdout

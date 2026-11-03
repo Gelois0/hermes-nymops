@@ -1,0 +1,29 @@
+---
+# M4 — fixed single-unit restart. Invoked only via gated apply → controller → runner.
+- name: Restart allowlisted nym-node unit
+  hosts: nym
+  gather_facts: false
+  serial: 1
+  tasks:
+    - name: Restart nym-node.service only
+      ansible.builtin.systemd:
+        name: nym-node.service
+        state: restarted
+      register: restart_result
+
+    - name: Read post-restart ActiveState
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/systemctl
+          - show
+          - nym-node.service
+          - --property=ActiveState,NRestarts,MainPID
+      changed_when: false
+      register: post
+
+    - name: Emit safe restart summary
+      ansible.builtin.debug:
+        msg: >-
+          {{ {'unit': 'nym-node.service',
+              'changed': restart_result.changed,
+              'post': post.stdout} | to_json }}

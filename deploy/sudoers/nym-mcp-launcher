@@ -1,0 +1,3 @@
+# Install as root:root mode 0440 in /etc/sudoers.d/.
+# The helper must remain root-owned, non-writable by hermes, and argument-free.
+hermes ALL=(root) NOPASSWD: /usr/local/libexec/nym-mcp/nym-mcp-launcher ""

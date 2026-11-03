@@ -1,0 +1,3 @@
+# Production runtime dependency for nym_mcp/mcp_server.py.
+# Target: CPython 3.13 on Linux x86_64; tested on 3.13.5; lock includes transitive SHA-256 hashes.
+mcp==2.3.0

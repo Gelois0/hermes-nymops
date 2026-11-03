@@ -1,0 +1,67 @@
+---
+# M4 — fixed binary update using sealed env from controller (no free URL argv).
+# Requires NYM_UPDATE_VERSION, NYM_UPDATE_TAG, NYM_UPDATE_URL, NYM_UPDATE_SHA256.
+- name: Update allowlisted nym-node binary
+  hosts: nym
+  gather_facts: false
+  serial: 1
+  vars:
+    update_version: "{{ lookup('env', 'NYM_UPDATE_VERSION') }}"
+    update_tag: "{{ lookup('env', 'NYM_UPDATE_TAG') }}"
+    update_url: "{{ lookup('env', 'NYM_UPDATE_URL') }}"
+    update_sha256: "{{ lookup('env', 'NYM_UPDATE_SHA256') }}"
+    binary_path: /root/nym-node
+    backup_path: /root/nym-node.bak-nymops
+  tasks:
+    - name: Reject missing sealed update metadata
+      ansible.builtin.assert:
+        that:
+          - update_version is match('^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$')
+          - update_tag | length > 0
+          - update_url is match('^https://')
+          - update_sha256 is match('^[0-9a-f]{64}$')
+        fail_msg: sealed_update_metadata_invalid
+
+    - name: Stop nym-node before binary replace
+      ansible.builtin.systemd:
+        name: nym-node.service
+        state: stopped
+
+    - name: Backup current binary inode path
+      ansible.builtin.copy:
+        src: "{{ binary_path }}"
+        dest: "{{ backup_path }}"
+        remote_src: true
+        mode: "0755"
+
+    - name: Download release artifact to temp
+      ansible.builtin.get_url:
+        url: "{{ update_url }}"
+        dest: /root/nym-node.next
+        mode: "0755"
+        checksum: "sha256:{{ update_sha256 }}"
+        force: true
+
+    - name: Install new binary
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/install
+          - -m
+          - "0755"
+          - /root/nym-node.next
+          - "{{ binary_path }}"
+      changed_when: true
+
+    - name: Start nym-node after update
+      ansible.builtin.systemd:
+        name: nym-node.service
+        state: started
+
+    - name: Emit safe update summary
+      ansible.builtin.debug:
+        msg: >-
+          {{ {'unit': 'nym-node.service',
+              'version': update_version,
+              'tag': update_tag,
+              'backup': backup_path,
+              'checksum_algo': 'sha256'} | to_json }}

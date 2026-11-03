@@ -1,0 +1,41 @@
+# Example unit — adjust credential paths to YOUR operator SSH key and known_hosts.
+# Keep LoadCredential; never embed private keys in the unit or repository.
+[Unit]
+Description=NYMOPS controller service (Alpha)
+Requires=nym-controller.socket
+After=nym-controller.socket
+
+[Service]
+Type=simple
+User=nym-controller
+Group=nym-controller
+ExecStart=/usr/bin/python3.13 -I -c "import runpy,sys; sys.path.insert(0,'/usr/local/libexec/nym-controller'); runpy.run_path('/usr/local/libexec/nym-controller/controller_service.py',run_name='__main__')"
+Restart=no
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+UMask=0077
+StateDirectory=nym-controller
+StateDirectoryMode=0700
+RuntimeDirectory=nym-controller
+RuntimeDirectoryMode=0700
+# Replace these paths with your dedicated operator key material (root-readable sources for LoadCredential).
+LoadCredential=ssh_key:/etc/nym-controller/ssh_key
+LoadCredential=known_hosts:/etc/nym-controller/known_hosts
+# Optional after install: LoadCredential=approval_secret:/etc/nym-controller/approval_secret
+TimeoutStartSec=15s
+TimeoutStopSec=10s
+KillMode=control-group
+# Keep maintenance disabled unless you explicitly set this in a drop-in after human approval.
+# Environment=NYM_MAINTENANCE_ENABLED=0
+
+[Install]
+WantedBy=multi-user.target

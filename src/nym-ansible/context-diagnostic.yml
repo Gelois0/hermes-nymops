@@ -1,0 +1,9 @@
+---
+# Existing controller references this playbook; staging stub preserves filename for runner validation.
+- name: Read-only context diagnostic placeholder
+  hosts: nym
+  gather_facts: false
+  tasks:
+    - name: No-op context marker
+      ansible.builtin.debug:
+        msg: context_diagnostic_staging_stub

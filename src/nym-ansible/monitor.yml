@@ -1,0 +1,64 @@
+---
+- name: Read-only selected-node monitoring
+  hosts: nym
+  gather_facts: false
+  tasks:
+    - name: Read fixed Nym health counters only
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            import datetime, json, os, re, shutil, subprocess
+            def run(argv):
+                try:
+                    p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=15)
+                    return p.stdout if p.returncode == 0 else None
+                except (OSError, subprocess.TimeoutExpired):
+                    return None
+            props = run(['/usr/bin/systemctl', 'show', 'nym-node.service', '--property=ActiveState,NRestarts'])
+            service = dict(line.split('=', 1) for line in (props or '').splitlines() if '=' in line)
+            active = service.get('ActiveState', 'unknown')
+            if active not in ('active', 'inactive', 'failed', 'activating', 'deactivating'):
+                active = 'unknown'
+            restarts = service.get('NRestarts', '')
+            restarts = int(restarts) if restarts.isdigit() else None
+            disk = shutil.disk_usage('/')
+            disk_pct = round(100 * disk.used / disk.total, 2)
+            memory_pct = None
+            try:
+                with open('/proc/meminfo') as f:
+                    memory = {line.split(':')[0]: int(line.split()[1]) for line in f}
+                memory_pct = round(100 * (1-memory['MemAvailable']/memory['MemTotal']), 2)
+            except (OSError, ValueError, KeyError, ZeroDivisionError):
+                pass
+            load = round(os.getloadavg()[0] / max(1, os.cpu_count() or 1), 2)
+            # No MESSAGE field: count only, with 201-entry cap and a 15-minute window.
+            journal = run(['/usr/bin/journalctl', '--unit=nym-node.service', '--since=-15min', '--priority=err', '--lines=201', '--output=json', '--output-fields=PRIORITY', '--no-pager', '--quiet'])
+            errors = None
+            capped = False
+            if journal is not None:
+                try:
+                    entries = [json.loads(line) for line in journal.splitlines() if line.strip()]
+                    errors = len(entries)
+                    capped = errors >= 201
+                except (ValueError, TypeError):
+                    pass
+            state = 'ok'
+            if active == 'unknown' or memory_pct is None or errors is None:
+                state = 'unknown'
+            if disk_pct >= 80 or (memory_pct is not None and memory_pct >= 85) or load >= 1 or (errors is not None and errors >= 1):
+                state = 'warning'
+            if active in ('inactive', 'failed') or disk_pct >= 90 or (memory_pct is not None and memory_pct >= 95) or load >= 2 or (errors is not None and errors >= 10):
+                state = 'critical'
+            version = run(['/usr/local/bin/nym-node', '--version'])
+            match = re.search(r'Build Version:\s*(\d+\.\d+\.\d+)', version or '')
+            version = 'nym-node ' + match.group(1) if match else None
+            checked_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            print(json.dumps(dict(checked_at=checked_at, version=version, state=state, service_state=active, restart_count=restarts, disk_used_pct=disk_pct, memory_used_pct=memory_pct, load_per_cpu=load, recent_error_count=errors, journal_sample_capped=capped)))
+      changed_when: false
+      register: monitor
+      no_log: true
+    - name: Report per-host safe monitoring counters
+      ansible.builtin.debug:
+        var: monitor.stdout

@@ -1,0 +1,7 @@
+# Example Hermes MCP server stanza (paths and tool allowlists vary by Hermes version).
+# Do NOT enable maintenance tools blindly. Prefer read-only tools first.
+#
+# mcp_servers:
+#   nym-ansible:
+#     command: ["/usr/bin/sudo", "-n", "/usr/local/libexec/nym-mcp/nym-mcp-launcher"]
+#     # trust / tool include fields depend on your Hermes Gateway schema
