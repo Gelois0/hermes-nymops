@@ -68,6 +68,7 @@ python3 tests/test_human_approval_offline.py
 - [SECURITY.md](SECURITY.md) — threat model and controls
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/guia-hermes-github-publico.md](docs/guia-hermes-github-publico.md) — prompts for Hermes to manage this repo with `gh` (no GitHub UI)
 - [LICENSE](LICENSE) — MIT License
 
 ## License
